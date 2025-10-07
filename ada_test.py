@@ -17,6 +17,30 @@ def pprint_color(obj: Any) -> None:
     """Pretty-print in color."""
     print(highlight(pformat(obj, compact=True), PythonLexer(), Terminal256Formatter()), end="")
 
+source_code_ada_whatever = """
+package body My_Last_Chance_Handler is
+
+            procedure Last_Chance_Handler(Msg : in System.Address; Line : in Integer) is
+                type Msg_Indices is range 1 .. 16;
+                type Msg_Arr is array (Msg_Indices range <>) of aliased Word;
+                type Day_Of_Month is new Integer range 1 .. 31;
+
+                function Convert1 is new Ada.Unchecked_Conversion (System.Address, Msg_Pointer.Pointer);
+                function Convert2 (Var : Integer) return Integer is begin
+                    null;
+                end
+            begin
+                --  TODO: Read PC from SP
+                for J in 1 .. 16 loop
+                    Qemu.DEBUG.MESSAGE (J) := Word (Msg_Str.all);
+                    Increment (Msg_Str);
+                end loop;
+
+            end Last_Chance_Handler;
+
+            end My_Last_Chance_Handler;
+"""
+
 source_code_ada_tasks = """
 task T is
    entry E(Z : access Integer);
@@ -223,7 +247,7 @@ pub fn clock(instant: Instant) -> EffectNodeDefinition {
 # results: FileInformation = analyze_file.analyze_source_code("a.adb", source_code)
 
 filename = "a.adb"
-source_code = source_code_ada_nested
+source_code = source_code_ada_whatever
 
 context = FileInfoBuilder(filename)
 reader = (get_reader_for(filename) or CLikeReader)(context)

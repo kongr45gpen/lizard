@@ -106,37 +106,130 @@ class Test_parser_for_Ada(unittest.TestCase):
         result = get_ada_function_list('''with Ada.Text_IO;''')
         self.assertEqual(0, len(result))
 
-    def test_one_function(self):
+    def test_one_procedure(self):
         result = get_ada_function_list('''
             procedure F is
             begin
                 null;
             end F;
-        ''')
+                ''')
         self.assertEqual(1, len(result))
         self.assertEqual("F", result[0].name)
         self.assertEqual(0, result[0].parameter_count)
         self.assertEqual(1, result[0].cyclomatic_complexity)
         self.assertEqual(4, result[0].length)
 
-#     def test_one_function_loc(self):
-#         result = get_ruby_function_list('''
-#             def f
-#                 something
-#             end
-#                 ''')
-#         self.assertEqual(3, result[0].length)
-#         self.assertEqual(3, result[0].nloc)
+    def test_one_function(self):
+        result = get_ada_function_list('''
+            function F return Integer is
+            begin
+                return 42;
+            end F;
+                ''')
+        self.assertEqual(1, len(result))
+        self.assertEqual("F", result[0].name)
+        self.assertEqual(0, result[0].parameter_count)
+        self.assertEqual(1, result[0].cyclomatic_complexity)
+        self.assertEqual(4, result[0].length)
 
-#     def test_two_functions(self):
-#         result = get_ruby_function_list('''
-#             def f
-#             end
-#             def g
-#             end
-#                 ''')
-#         self.assertEqual(2, len(result))
-#         self.assertEqual("g", result[1].name)
+    def test_one_function_loc(self):
+        result = get_ada_function_list('''
+            procedure F is begin
+                something;
+                something;
+            end F;
+                ''')
+        self.assertEqual(4, result[0].length)
+        self.assertEqual(4, result[0].nloc)
+
+    def test_two_functions(self):
+        result = get_ada_function_list('''
+            procedure F is begin
+            end F;
+            procedure G is begin
+            end G;
+                ''')
+        self.assertEqual(2, len(result))
+        self.assertEqual("G", result[1].name)
+
+    def test_null_procedures(self):
+        result = get_ada_function_list('''
+            procedure F (Msg : String) is null;
+            procedure G is null;
+                ''')
+        self.assertEqual(2, len(result))
+        self.assertEqual("F", result[0].name)
+        self.assertEqual(1, result[0].nloc)
+        self.assertEqual("G", result[1].name)
+        self.assertEqual(1, result[1].nloc)
+
+    def test_subprogram_declaration(self):
+        result = get_ada_function_list('''
+            procedure Proc
+                (Var1 : Integer;
+                Var2 : out Integer;
+                Var3 : in out Integer);
+
+            function Func (Var : Integer) return Integer;
+                ''')
+        self.assertEqual(2, len(result))
+        self.assertEqual("Proc", result[0].name)
+        self.assertEqual("Func", result[1].name)
+
+    def test_subprogram_rename(self):
+        result = get_ada_function_list('''
+                procedure Print renames Message.Print;
+            ''')
+        self.assertEqual(1, len(result))
+        self.assertEqual("Print", result[0].name)
+
+    def test_function_generic_instantiation(self):
+        result = get_ada_function_list('''
+            function Convert1 is new Ada.Unchecked_Conversion (System.Address, Msg_Pointer.Pointer);
+                ''')
+        self.assertEqual(1, len(result))
+        self.assertEqual("Convert1", result[0].name)
+
+    def test_function_contracts(self):
+        result = get_ada_function_list('''
+            function Divide (Left, Right : Float) return Float
+                with Pre  => Right /= 0.0,
+                Post => Divide'Result * Right < Left + 0.0001
+                    and then Divide'Result * Right > Left - 0.0001;
+        ''')
+        self.assertEqual(1, len(result))
+        self.assertEqual("Divide", result[0].name)
+
+
+    def test_complex_subprogram(self):
+        result = get_ada_function_list('''
+            package body Pack is
+
+            procedure Last_Chance_Handler(Msg : in System.Address; Line : in Integer) is
+                type Msg_Indices is range 1 .. 16;
+                type Msg_Arr is array (Msg_Indices range <>) of aliased Word;
+                type Day_Of_Month is new Integer range 1 .. 31;
+
+                function Convert1 is new Ada.Unchecked_Conversion (System.Address, Msg_Pointer.Pointer);
+                function Convert2 (Var : Integer) return Integer is begin
+                    null;
+                end
+            begin
+                --  TODO: Read PC from SP
+                for J in 1 .. 16 loop
+                    Qemu.DEBUG.MESSAGE (J) := Word (Msg_Str.all);
+                    Increment (Msg_Str);
+                end loop;
+
+            end Last_Chance_Handler;
+
+            end Pack;
+        ''')
+        self.assertEqual(3, len(result))
+        self.assertEqual("Pack::Last_Chance_Handler", result[0].name)
+        self.assertEqual("Pack::Convert1", result[1].name)
+        self.assertEqual("Pack::Convert2", result[2].name)
+
 
 #     def test_one_with_begin_and_end(self):
 #         result = get_ruby_function_list('''

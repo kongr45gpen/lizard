@@ -35,12 +35,12 @@ class AdaReader(CodeReader):
         # Include all patterns and the (?i) flag in addition
         addition = (
             r'|--' + _until_end + r'|'
-            r'package\s+body'
+            r'package\s+body|'
+            r'task\s+body'
             # + addition
             # + block_endings
             + addition
         )
-        print(addition)
         return CodeReader.generate_tokens(
             source_code, addition=addition, token_class=token_class)
     
@@ -118,22 +118,24 @@ class AdaStates(CodeStateMachine):
         if token == '(':
             self.next(self._subprogram_params, token)
         else:
-            self.next(self._subprogram_defn, token)
+            self.next(self._subprogram_decl, token)
 
-    def _subprogram_defn(self, token):
+    def _subprogram_decl(self, token):
         if token in [ 'with', 'return' ]:
             pass
         elif token == 'is':
-            self.next(self._subprogram_decl, token)
+            self.next(self._subprogram_defn, token)
         elif token == ';':
             self.context.end_of_function()
             self.reset_state(token)
 
-    def _subprogram_decl(self, token):
+    def _subprogram_defn(self, token):
         if token == 'begin':
             self.next(self._begin_subprogram, token)
         elif token == 'end':
             self.next(self._end, token)
+        elif token in [ 'null', 'return', 'new' ]:
+            self._pop_function_if_exists()
         elif token in self.SUBPROGRAM_TOKENS:
             self._nested_functions += 1
             self._state = self._subprogram
@@ -213,7 +215,7 @@ class AdaStates(CodeStateMachine):
             self.context.end_of_function()
             if self._nested_functions > 0:
                 self._nested_functions -= 1
-                self._state = self._subprogram_decl
+                self._state = self._subprogram_defn
                 return
         else:
             self.context.nesting_stack.pop()
